@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogo de Videos Educativos</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Estilos Personalizados (Asegúrate que el archivo se llame catalogo.css) -->
+    <link rel="stylesheet" href="catalogo.css">
+</head>
+
+<body>
+
+    <!-- Barra de Navegación superior -->
+    <nav class="navbar navbar-expand-lg sticky-top shadow-sm">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center gap-2" href="#">
+                <i class="bi bi-play-btn-fill fs-3 text-primary"></i>
+                <span class="fw-bold">EduCatalog</span>
+            </a>
+
+            <!-- Control de Usuario -->
+            <div class="d-flex align-items-center gap-3" id="userSection"></div>
+        </div>
+    </nav>
+
+    <!-- Hero & Sección del Filtro/Búsqueda -->
+    <header class="catalog-hero py-4 border-bottom">
+        <div class="container">
+            <div class="row align-items-center g-3">
+
+                <!-- Categorías -->
+                <div class="col-md-6">
+                    <label class="form-label text-muted small fw-semibold">Filtrar por Categoría</label>
+                    <div class="d-flex gap-2 flex-wrap" id="categoriesContainer">
+                        <button class="btn btn-category active" id="btnCategoryAll" onclick="resetCategories(this)">Todas</button>
+                    </div>
+                </div>
+
+                <!-- Búsqueda en tiempo real -->
+                <div class="col-md-6">
+                    <label for="searchInput" class="form-label text-muted small fw-semibold">Buscar Video</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                        <input type="text" id="searchInput" class="form-control border-start-0" placeholder="Escribe un título para buscar...">
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </header>
+
+    <!-- Galería de Videos -->
+    <main class="container py-5">
+        <div class="row g-4" id="videosContainer">
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+                <p class="text-muted mt-2">Cargando catálogo de videos...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal del Reproductor -->
+    <div class="modal fade" id="videoModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg overflow-hidden">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold" id="modalVideoTitle">Título del Video</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body p-4">
+                    <div class="ratio ratio-16x9 mb-3 rounded shadow-sm overflow-hidden bg-dark">
+                        <iframe id="modalVideoIframe" src="" title="Reproductor de video" allowfullscreen></iframe>
+                    </div>
+
+                    <p class="text-muted" id="modalVideoDescription">Descripción del video...</p>
+                    <hr>
+
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <button class="btn btn-outline-primary d-flex align-items-center gap-2" id="btnLike" onclick="handleInteractiveAction('like')">
+                            <i class="bi bi-hand-thumbs-up"></i>
+                            <span>Me gusta</span>
+                        </button>
+                        <span class="badge bg-secondary rounded-pill" id="modalVideoCategory">Categoría</span>
+                    </div>
+
+                    <div class="comments-section mt-4">
+                        <h6 class="fw-bold mb-3">Comentarios</h6>
+                        <div id="commentFormContainer" class="mb-3"></div>
+                        <div id="commentsList" class="d-flex flex-column gap-2">
+                            <p class="text-muted small">No hay comentarios aún.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cargar Scripts SÓLO AL FINAL DEL BODY -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="catalogo.js"></script>
+</body>
+</html>
