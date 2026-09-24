@@ -3,10 +3,10 @@ const BASE_URL =
 
 let allVideos = [];
 let currentUser = null;
+let currentVideoId = null;
 let videoModal = null;
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Inicializar modal de Bootstrap
   const modalEl = document.getElementById("videoModal");
   if (modalEl) {
     videoModal = new bootstrap.Modal(modalEl);
@@ -18,21 +18,21 @@ document.addEventListener("DOMContentLoaded", () => {
   setupSearchFilter();
 });
 
-// Verificación de Usuario o Visitante
+// -------------------------------------------------------------
+// VERIFICACIÓN DE SESIÓN Y USUARIOS
+// -------------------------------------------------------------
 function checkUserSession() {
-  const storedUser = localStorage.getItem('usuarioActivo');
-  const userSection = document.getElementById('userSection');
+  const storedUser = localStorage.getItem("usuarioActivo");
+  const userSection = document.getElementById("userSection");
 
   if (storedUser) {
     try {
       const parsedData = JSON.parse(storedUser);
+      let nombreMostrar = "Usuario Registrado";
 
-      // Extraer el nombre desde la propiedad estudiante.nombre de la API
-      let nombreMostrar = 'Usuario Registrado';
-
-      if (parsedData.estudiante && parsedData.estudiante.nombre) {
+      if (parsedData.estudiante && typeof parsedData.estudiante === "object" && parsedData.estudiante.nombre) {
         nombreMostrar = parsedData.estudiante.nombre;
-      } else if (typeof parsedData.estudiante === 'string') {
+      } else if (typeof parsedData.estudiante === "string") {
         nombreMostrar = parsedData.estudiante;
       } else if (parsedData.usuario) {
         nombreMostrar = parsedData.usuario;
@@ -47,7 +47,7 @@ function checkUserSession() {
       `;
       currentUser = parsedData;
     } catch (e) {
-      console.error('Error al leer datos de sesión:', e);
+      console.error("Error al leer datos de sesión:", e);
       renderVisitorBadge(userSection);
     }
   } else {
@@ -69,11 +69,27 @@ function logout() {
   window.location.href = "index.html";
 }
 
-// -------------------------------------------------------------
-// OBTENER RECURSOS DE LA API
-// -------------------------------------------------------------
+// Extrae el carné garantizando que nunca retorne un objeto
+function getUserCarne() {
+  if (!currentUser) return null;
+  if (currentUser.estudiante) {
+    if (typeof currentUser.estudiante === "object" && currentUser.estudiante.carne) {
+      return currentUser.estudiante.carne;
+    }
+    if (typeof currentUser.estudiante === "string" && /^\d{4}-\d{2}-\d{5}$/.test(currentUser.estudiante)) {
+      return currentUser.estudiante;
+    }
+  }
+  if (currentUser.carne) return currentUser.carne;
+  if (currentUser.usuario && /^\d{4}-\d{2}-\d{5}$/.test(currentUser.usuario)) {
+    return currentUser.usuario;
+  }
+  return null;
+}
 
-// 1. Cargar Categorías
+// -------------------------------------------------------------
+// OBTENER Y FILTRAR VIDEOS
+// -------------------------------------------------------------
 async function loadCategories() {
   try {
     const response = await fetch(`${BASE_URL}/videos/categorias`);
@@ -82,7 +98,6 @@ async function loadCategories() {
     const categories = await response.json();
     const container = document.getElementById("categoriesContainer");
 
-    // Limpiar contenedor conservando el botón "Todas"
     container.innerHTML = `
       <button class="btn btn-category active" id="btnCategoryAll" onclick="resetCategories(this)">Todas</button>
     `;
@@ -101,7 +116,6 @@ async function loadCategories() {
   }
 }
 
-// Función para el botón "Todas"
 function resetCategories(btnElement) {
   document
     .querySelectorAll(".btn-category")
@@ -110,7 +124,6 @@ function resetCategories(btnElement) {
   renderVideos(allVideos);
 }
 
-// 2. Cargar Catálogo Completo
 async function loadVideos() {
   try {
     const response = await fetch(`${BASE_URL}/videos`);
@@ -128,7 +141,6 @@ async function loadVideos() {
   }
 }
 
-// Renderizar tarjetas en la galería
 function renderVideos(videos) {
   const container = document.getElementById("videosContainer");
 
@@ -148,10 +160,11 @@ function renderVideos(videos) {
       const descripcion = video.descripcion || "";
       const duracion = video.duracion || "0:00";
       const categoria = video.categoria || "General";
+      const videoId = video.id || video._id;
 
       return `
       <div class="col-12 col-md-6 col-lg-4 d-flex align-items-stretch">
-        <div class="card video-card w-100 border-0 shadow-sm rounded-4 overflow-hidden my-2" onclick="openVideoModal('${video.id || video._id}')">
+        <div class="card video-card w-100 border-0 shadow-sm rounded-4 overflow-hidden my-2" onclick="openVideoModal('${videoId}')">
           <div class="poster-container position-relative bg-dark">
             <img src="${posterUrl}" class="card-img-top poster-img" alt="${titulo}">
             <div class="play-overlay">
@@ -173,9 +186,6 @@ function renderVideos(videos) {
     .join("");
 }
 
-// -------------------------------------------------------------
-// FILTROS Y BÚSQUEDA
-// -------------------------------------------------------------
 async function filterByCategory(categoryName, element) {
   document
     .querySelectorAll(".btn-category")
@@ -184,22 +194,21 @@ async function filterByCategory(categoryName, element) {
 
   try {
     const response = await fetch(
-      `${BASE_URL}/videos/categoria/${encodeURIComponent(categoryName)}`,
+      `${BASE_URL}/videos/categoria/${encodeURIComponent(categoryName)}`
     );
     if (response.ok) {
       const filteredVideos = await response.json();
       renderVideos(filteredVideos);
     } else {
-      // Si el endpoint de categoría falla, filtramos localmente en JS
       const filtered = allVideos.filter(
-        (v) => (v.categoria || "").toLowerCase() === categoryName.toLowerCase(),
+        (v) => (v.categoria || "").toLowerCase() === categoryName.toLowerCase()
       );
       renderVideos(filtered);
     }
   } catch (error) {
     console.error("Error al filtrar:", error);
     const filtered = allVideos.filter(
-      (v) => (v.categoria || "").toLowerCase() === categoryName.toLowerCase(),
+      (v) => (v.categoria || "").toLowerCase() === categoryName.toLowerCase()
     );
     renderVideos(filtered);
   }
@@ -214,23 +223,22 @@ function setupSearchFilter() {
     const filtered = allVideos.filter(
       (video) =>
         (video.titulo && video.titulo.toLowerCase().includes(term)) ||
-        (video.descripcion && video.descripcion.toLowerCase().includes(term)),
+        (video.descripcion && video.descripcion.toLowerCase().includes(term))
     );
     renderVideos(filtered);
   });
 }
 
 // -------------------------------------------------------------
-// REPRODUCTOR DE VIDEO Y ACCESO
+// REPRODUCTOR DE VIDEO Y MODAL
 // -------------------------------------------------------------
 async function openVideoModal(videoId) {
+  currentVideoId = videoId;
   try {
-    let video = allVideos.find((v) => (v.id || v._id) == videoId);
-
-    if (!video) {
-      const response = await fetch(`${BASE_URL}/videos/${videoId}`);
-      if (response.ok) video = await response.json();
-    }
+    const response = await fetch(`${BASE_URL}/videos/${videoId}`);
+    let video = response.ok
+      ? await response.json()
+      : allVideos.find((v) => (v.id || v._id) == videoId);
 
     if (!video) return;
 
@@ -247,72 +255,361 @@ async function openVideoModal(videoId) {
       video.videoUrl ||
       "https://www.youtube.com/embed/dQw4w9WgXcQ";
 
+    const likesArray = video.likes || [];
+    let count = 0;
+
+    if (typeof video.likesCount === "number") {
+      count = video.likesCount;
+    } else if (typeof video.likes === "number") {
+      count = video.likes;
+    } else if (Array.isArray(likesArray)) {
+      count = likesArray.length;
+    }
+
+    const myCarne = getUserCarne();
+    let isLiked = false;
+
+    if (Array.isArray(likesArray) && myCarne) {
+      isLiked = likesArray.some(
+        (item) =>
+          item === myCarne ||
+          (typeof item === "object" &&
+            (item.carne === myCarne || item.usuario === myCarne))
+      );
+    } else if (typeof video.likedByCurrentUser === "boolean") {
+      isLiked = video.likedByCurrentUser;
+    }
+
+    updateLikesUI(count, isLiked);
     setupInteractiveControls();
+    loadComments(video.comentarios || []);
+
     if (videoModal) videoModal.show();
   } catch (error) {
     console.error("Error abriendo video:", error);
   }
 }
 
-// Limpiar reproductor al cerrar el modal
 const modalEl = document.getElementById("videoModal");
 if (modalEl) {
   modalEl.addEventListener("hidden.bs.modal", () => {
     document.getElementById("modalVideoIframe").src = "";
+    currentVideoId = null;
   });
 }
 
-function setupInteractiveControls() {
-  const commentFormContainer = document.getElementById("commentFormContainer");
+async function refreshVideoModalData() {
+  if (!currentVideoId) return;
+  try {
+    const response = await fetch(`${BASE_URL}/videos/${currentVideoId}`);
+    if (response.ok) {
+      const video = await response.json();
+      const likesArray = video.likes || [];
+      
+      let count = 0;
+      if (typeof video.likesCount === "number") count = video.likesCount;
+      else if (typeof video.likes === "number") count = video.likes;
+      else if (Array.isArray(likesArray)) count = likesArray.length;
 
-  if (!currentUser) {
-    commentFormContainer.innerHTML = `
-      <div class="restricted-banner">
-        <i class="bi bi-lock-fill me-1"></i> Debe <a href="index.html" class="fw-bold text-decoration-underline">iniciar sesión</a> para comentar o dar me gusta.
-      </div>
-    `;
-  } else {
-    commentFormContainer.innerHTML = `
-      <div class="input-group">
-        <input type="text" id="inputComment" class="form-control" placeholder="Escribe un comentario...">
-        <button class="btn btn-primary" type="button" onclick="postComment()">Comentar</button>
-      </div>
-    `;
+      const myCarne = getUserCarne();
+      let isLiked = false;
+      if (Array.isArray(likesArray) && myCarne) {
+        isLiked = likesArray.some(
+          (item) =>
+            item === myCarne ||
+            (typeof item === "object" &&
+              (item.carne === myCarne || item.usuario === myCarne))
+        );
+      }
+
+      updateLikesUI(count, isLiked);
+      loadComments(video.comentarios || []);
+    }
+  } catch (e) {
+    console.error("Error de sincronización con la API:", e);
   }
 }
 
-function handleInteractiveAction(actionType) {
+// -------------------------------------------------------------
+// SERIE III - 1. REACCIÓN ME GUSTA / QUITAR ME GUSTA (TOGGLE LIKE)
+// -------------------------------------------------------------
+function updateLikesUI(count, isLiked) {
+  const btnLike = document.getElementById("btnLike");
+  const likesCounter = document.getElementById("likesCount");
+
+  if (likesCounter) likesCounter.textContent = count;
+  if (btnLike) {
+    btnLike.dataset.liked = isLiked ? "true" : "false";
+
+    if (isLiked) {
+      btnLike.classList.remove("btn-outline-primary");
+      btnLike.classList.add("btn-primary");
+    } else {
+      btnLike.classList.remove("btn-primary");
+      btnLike.classList.add("btn-outline-primary");
+    }
+  }
+}
+
+async function toggleLike() {
   if (!currentUser) {
     alert("Esta funcionalidad está restringida a usuarios registrados.");
     window.location.href = "index.html";
     return;
   }
 
-  if (actionType === "like") {
-    alert('¡Gracias! Tu "Me gusta" ha sido registrado.');
+  const carne = getUserCarne();
+  if (!carne) {
+    alert("Para dar Me Gusta debes haber iniciado sesión con tu Carné.");
+    return;
+  }
+
+  const btnLike = document.getElementById("btnLike");
+  if (!btnLike) return;
+
+  btnLike.disabled = true;
+
+  try {
+    const response = await fetch(
+      `${BASE_URL}/interaccionvideo/${currentVideoId}/like`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ carne: carne }),
+      }
+    );
+
+    if (response.ok) {
+      await refreshVideoModalData();
+    } else {
+      const data = await response.json().catch(() => ({}));
+      alert(data.message || "Error al procesar la reacción.");
+    }
+  } catch (error) {
+    console.error("Error en toggle like:", error);
+  } finally {
+    btnLike.disabled = false;
   }
 }
 
-function postComment() {
+// -------------------------------------------------------------
+// SERIE III - 2. PUBLICAR COMENTARIO PRINCIPAL
+// -------------------------------------------------------------
+function setupInteractiveControls() {
+  const commentFormContainer = document.getElementById("commentFormContainer");
+
+  if (!currentUser) {
+    commentFormContainer.innerHTML = `
+      <div class="restricted-banner">
+        <i class="bi bi-lock-fill me-1"></i> Debe <a href="index.html" class="fw-bold text-decoration-underline">iniciar sesión</a> para comentar o dar Me Gusta.
+      </div>
+    `;
+  } else {
+    commentFormContainer.innerHTML = `
+      <div class="input-group">
+        <input type="text" id="inputComment" class="form-control" placeholder="Escribe un comentario...">
+        <button class="btn btn-primary" type="button" onclick="postMainComment()"><i class="bi bi-send me-1"></i>Comentar</button>
+      </div>
+    `;
+  }
+}
+
+async function postMainComment() {
+  if (!currentUser) return;
+
   const commentInput = document.getElementById("inputComment");
-  const text = commentInput ? commentInput.value.trim() : "";
+  const texto = commentInput ? commentInput.value.trim() : "";
+  const carne = getUserCarne();
 
-  if (!text) return;
+  if (!texto) return;
 
+  try {
+    const response = await fetch(
+      `${BASE_URL}/interaccionvideo/${currentVideoId}/comentario`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ carne: carne, texto: texto }),
+      }
+    );
+
+    const data = await response.json().catch(() => ({}));
+
+    if (response.ok) {
+      if (commentInput) commentInput.value = "";
+      refreshVideoModalData();
+    } else {
+      alert(data.message || "Error al publicar el comentario.");
+    }
+  } catch (error) {
+    console.error("Error al comentar:", error);
+  }
+}
+
+// Helper para extraer un string de nombre válido de cualquier estructura de objeto
+function parseAuthorName(entity) {
+  if (!entity) return "Estudiante";
+  if (typeof entity === "string") return entity;
+  if (typeof entity === "object") {
+    return entity.estudianteNombre || entity.nombre || entity.estudiante || entity.carne || "Estudiante";
+  }
+  return "Estudiante";
+}
+
+// Helper para extraer el carné en comentarios
+function parseAuthorCarne(entity) {
+  if (!entity) return null;
+  if (typeof entity === "string") return entity;
+  if (typeof entity === "object") {
+    return entity.carne || entity.usuario || null;
+  }
+  return null;
+}
+
+// -------------------------------------------------------------
+// SERIE III - 3 Y 4. RENDERIZADO DE COMENTARIOS, RESPUESTAS Y ELIMINACIÓN
+// -------------------------------------------------------------
+function loadComments(comentarios) {
   const commentsList = document.getElementById("commentsList");
-  const newComment = document.createElement("div");
-  newComment.className = "p-2 bg-light rounded border mb-2";
 
-  let autor = "Estudiante";
-  if (typeof currentUser === "string") autor = currentUser;
-  else if (currentUser)
-    autor = currentUser.estudiante || currentUser.usuario || "Estudiante";
+  if (!comentarios || comentarios.length === 0) {
+    commentsList.innerHTML = `<p class="text-muted small">No hay comentarios aún. ¡Sé el primero en opinar!</p>`;
+    return;
+  }
 
-  newComment.innerHTML = `
-    <strong class="d-block small text-primary">${autor}</strong>
-    <span class="small">${text}</span>
-  `;
+  const myCarne = getUserCarne();
 
-  commentsList.prepend(newComment);
-  commentInput.value = "";
+  commentsList.innerHTML = comentarios
+    .map((c) => {
+      const comentarioId = c.id || c._id;
+      const autorNombre = parseAuthorName(c.estudianteNombre || c.nombre || c.estudiante || c.carne);
+      const comentarioCarne = c.carne || parseAuthorCarne(c.estudiante);
+      const esMiComentario = myCarne && comentarioCarne === myCarne;
+
+      // Mapeo de respuestas del 1er Nivel
+      const respuestasHTML = (c.respuestas || [])
+        .map((r) => {
+          const respuestaId = r.id || r._id;
+          const autorRespuesta = parseAuthorName(r.estudianteNombre || r.nombre || r.estudiante || r.carne);
+          const respuestaCarne = r.carne || parseAuthorCarne(r.estudiante);
+          const esMiRespuesta = myCarne && respuestaCarne === myCarne;
+
+          return `
+        <div class="bg-white p-2 rounded border-start border-3 border-primary ms-4 mt-2">
+          <div class="d-flex justify-content-between align-items-center">
+            <strong class="small text-primary">${autorRespuesta}</strong>
+            ${
+              esMiRespuesta
+                ? `<button class="btn btn-link text-danger p-0 btn-sm" onclick="deleteComment('${respuestaId}')" title="Eliminar"><i class="bi bi-trash"></i></button>`
+                : ""
+            }
+          </div>
+          <p class="small mb-0 text-dark">${r.texto}</p>
+        </div>
+      `;
+        })
+        .join("");
+
+      return `
+      <div class="bg-light p-3 rounded-3 border mb-2">
+        <div class="d-flex justify-content-between align-items-center">
+          <strong class="text-dark small"><i class="bi bi-person-fill text-secondary me-1"></i>${autorNombre}</strong>
+          ${
+            esMiComentario
+              ? `<button class="btn btn-link text-danger p-0 btn-sm" onclick="deleteComment('${comentarioId}')" title="Eliminar comentario"><i class="bi bi-trash fs-6"></i></button>`
+              : ""
+          }
+        </div>
+        <p class="small mb-2 mt-1 text-secondary">${c.texto}</p>
+        
+        ${
+          currentUser
+            ? `
+          <button class="btn btn-link text-primary p-0 text-decoration-none small" onclick="toggleReplyBox('${comentarioId}')">
+            <i class="bi bi-reply-fill me-1"></i>Responder
+          </button>
+          
+          <div id="replyBox-${comentarioId}" class="mt-2 d-none">
+            <div class="input-group input-group-sm">
+              <input type="text" id="inputReply-${comentarioId}" class="form-control" placeholder="Escribe tu respuesta...">
+              <button class="btn btn-primary" type="button" onclick="postReply('${comentarioId}')">Enviar</button>
+            </div>
+          </div>
+        `
+            : ""
+        }
+
+        <!-- Respuestas Anidadas (1 Nivel) -->
+        <div class="replies-container">
+          ${respuestasHTML}
+        </div>
+      </div>
+    `;
+    })
+    .join("");
+}
+
+function toggleReplyBox(comentarioId) {
+  const box = document.getElementById(`replyBox-${comentarioId}`);
+  if (box) box.classList.toggle("d-none");
+}
+
+async function postReply(comentarioId) {
+  if (!currentUser) return;
+
+  const inputReply = document.getElementById(`inputReply-${comentarioId}`);
+  const texto = inputReply ? inputReply.value.trim() : "";
+  const carne = getUserCarne();
+
+  if (!texto) return;
+
+  try {
+    const response = await fetch(
+      `${BASE_URL}/interaccionvideo/comentario/${comentarioId}/responder`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ carne: carne, texto: texto }),
+      }
+    );
+
+    const data = await response.json().catch(() => ({}));
+
+    if (response.ok) {
+      refreshVideoModalData();
+    } else {
+      alert(data.message || "Error al responder el comentario.");
+    }
+  } catch (error) {
+    console.error("Error al responder:", error);
+  }
+}
+
+async function deleteComment(comentarioId) {
+  const carne = getUserCarne();
+  if (!carne) return;
+
+  if (!confirm("¿Estás seguro de que deseas eliminar este comentario?")) return;
+
+  try {
+    const response = await fetch(
+      `${BASE_URL}/interaccionvideo/comentario/${comentarioId}?carne=${encodeURIComponent(carne)}`,
+      {
+        method: "DELETE",
+      }
+    );
+
+    if (response.ok) {
+      refreshVideoModalData();
+    } else if (response.status === 403) {
+      alert(
+        "Acceso denegado: Únicamente puedes eliminar tus propios comentarios."
+      );
+    } else {
+      const data = await response.json().catch(() => ({}));
+      alert(data.message || "No se pudo eliminar el comentario.");
+    }
+  } catch (error) {
+    console.error("Error eliminando comentario:", error);
+  }
 }
